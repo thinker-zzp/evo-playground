@@ -1,98 +1,94 @@
-# Evo Playground
+# Evo Playground · 算法翻山记
 
-Interactive GA / PSO / DE search on a two-dimensional Gaussian fitness landscape.
+一场小小的算法远征：押一支队伍，看 GA、PSO 和 DE 在同一片山谷里寻找最高峰。
 
-[Online demo](https://thinker-zzp.github.io/evo-playground/) · [Personal homepage](https://thinker-zzp.github.io/?lang=zh) · [主页接入说明](docs/homepage-integration.md)
+[在线体验](https://thinker-zzp.github.io/evo-playground/) · [源码](https://github.com/thinker-zzp/evo-playground) · [个人主页](https://thinker-zzp.github.io/?lang=zh) · [主页接入说明](docs/homepage-integration.md)
 
-![Evo Playground screenshot](screenshot.png)
+![算法翻山记](screenshot.png)
+
+## 怎么玩
+
+1. 出发前押 GA、PSO 或 DE。三队从相同的候选位置出发。
+2. 点击 **出发探索**，看三种搜索策略寻找山顶；也可以暂停、单步前进。
+3. 率先达到网格参考高度 **99.5%** 的队伍获胜。同一代达到目标算并列；其余队伍继续探索，整局在 120 代结束。
+4. 试试 **群峰之间 / 孤岛远征 / 针尖山谷**；点击 **随机新地图** 会切换到下一个地图种子。
+5. 开启 **搬动主峰**，再点击地图，主峰就会搬家，三队重新出发。
+
+地图下方的队伍按钮可聚焦某一队，足迹可以开关。右侧“想动动参数？”里可以调整种群、GA 突变概率、PSO 惯性和 DE 差分幅度。参数即时生效；改变种群数量会重开本局。
+
+快捷键：空格开始 / 暂停，右方向键单步，R 重来，Esc 退出搬峰模式。操作滑块时保留其原生键盘行为。
 
 ## 本地打开
 
-这是纯静态网页，无需安装依赖、无需构建，也不需要 API Key。
+纯 HTML / CSS / JavaScript，没有运行时依赖，不需要构建、服务器或 API Key。
 
-- Windows：双击 `01_open_local.bat`，或直接用浏览器打开 `index.html`。
-- 开发时可选：在项目目录运行 `python -m http.server 8765 --bind 127.0.0.1`，然后访问 <http://127.0.0.1:8765/>。在终端按 Ctrl+C 停止服务。
-- 在线访问：<https://thinker-zzp.github.io/evo-playground/>，无需启动电脑上的任何程序。
+- Windows：双击 `01_open_local.bat`，或者直接用浏览器打开 `index.html`。
+- 可选本地开发服务：
 
-点击 **Run** 开始 / 暂停，**Step** 单步运行，**Reset** 重置。快捷键：空格、右方向键、R。
+```powershell
+python -m http.server 8765 --bind 127.0.0.1
+```
 
-算法参数与速度即时生效；修改种群大小会重置当前搜索。每次重置重新随机初始化。
+然后访问 <http://127.0.0.1:8765/>，Ctrl+C 停止服务。
 
-## GitHub 与发布
+## 绘制方式
 
-- 源码仓库：<https://github.com/thinker-zzp/evo-playground>
-- Pages：仓库 **Settings → Pages → Deploy from a branch → main → /(root)**。
-- `.nojekyll` 让 GitHub Pages 直接提供静态文件。
-- 页面使用相对资源路径，可部署在 `/evo-playground/` 子路径下。
+- 地形颜色由采样场双线性插值生成，等高线通过 marching triangles 插值绘制。
+- 地图和趋势图的画布按 `devicePixelRatio` 分配物理像素（最高 3 倍），取消像素化缩放。
+- 地形底图缓存，粒子与轨迹单独绘制；代际位置过渡只影响画面，不增加算法更新。
+- 支持桌面、平板、手机布局，并尊重 `prefers-reduced-motion`。
+- 字体、插图与地图均不依赖外部 CDN。
 
-修改代码后，在本项目目录提交并推送：
+## 算法与演示协议
+
+| 队伍 | 搜索方式                                                             |
+| ---- | -------------------------------------------------------------------- |
+| GA   | Tournament (k=3)、BLX-α (α=0.5)、独立维度高斯突变 (σ=0.08)、精英保留 |
+| PSO  | 惯性权重、个人 / 全局最优引导、速度限制、边界阻尼反射                |
+| DE   | DE/rand/1/bin、三个互异供体、至少一个突变维度、贪心选择              |
+
+地形是在 `[0,1]²` 上叠加的 Gaussian peaks。三种地图使用不同的峰位置和宽度；同一种地图的不同种子会改变峰的位置和宽度。以 **240 × 240 网格**的最小 / 最大值缩放高度，旗帜标记采样得到的最大值。峰中心与叠加地形的最大值不一定重合；网格之间的实际高度可能略大于 100%，界面显示上限为 100%。
+
+每队有独立的带种子随机流；起始候选位置相同，且排除参考高度大于 78% 的起点，让寻找峰顶成为本局过程的一部分。PSO 另外初始化速度。**重来**会保留当前地图（包括手动搬峰位置）与种子，使用界面上当前参数重新初始化三队；在参数不变时可以复现本局。搬峰会重新计算地形参考与所有候选适应度，清除旧的历史最优、曲线和赛果。
+
+这是按代推进的交互式教育演示。不同算法每代的函数评估次数不同，单局结果不用于判断算法的普遍优劣。比赛中的参数调整也会影响结果。
+
+## 检查
+
+安装 Node.js 后，无需 npm install，直接运行：
+
+```powershell
+node --test tests/*.test.cjs
+Get-ChildItem js/*.js | ForEach-Object { node --check $_.FullName }
+```
+
+测试覆盖同起点与种子复现、三种地形下的候选边界与最优历史、搬峰、物理像素缓存，以及整局结束、并列获胜、参数更新和重开状态。
+
+## 发布与主页联动
+
+GitHub Pages 发布源为 **main / 根目录**，`.nojekyll` 提供直接静态发布。修改后提交并推送即可自动更新：
 
 ```powershell
 git status
-git add index.html style.css js README.md docs
+git add index.html style.css js tests README.md docs screenshot.png favicon.svg
 git diff --cached
 git commit -m "Describe your change"
 git push
 ```
 
-GitHub Pages 会自动发布 `main` 分支的新提交；构建状态可在仓库 Actions / Settings → Pages 查看。
+主页与演示分别维护：主页位于 `/`，演示位于 `/evo-playground/`。本项目不修改主页仓库；演示顶部已有返回主页的链接。主页维护者可按 [接入说明](docs/homepage-integration.md) 添加入口。
 
-## 与个人主页联动
-
-保留两个独立仓库：主页在根路径 `/`，演示在 `/evo-playground/`。演示顶部已有“个人主页”返回链接。
-
-主页维护者只需添加一个“在线体验”链接，目标为 `https://thinker-zzp.github.io/evo-playground/`；不需要复制演示代码。具体 HTML 和双语接入示例见 [docs/homepage-integration.md](docs/homepage-integration.md)。本仓库的发布不会修改主页仓库。
-
-## Algorithms
-
-| Algorithm | Implementation |
-| --- | --- |
-| GA | Tournament selection (k=3), BLX-α crossover (α=0.5), Gaussian mutation (σ=0.08), elitism |
-| PSO | Inertia-weighted velocity update, personal/global bests, velocity cap, damped boundary reflection |
-| DE | DE/rand/1/bin, three distinct donors, guaranteed mutant dimension, greedy selection |
-
-The landscape sums six Gaussian peaks in `[-5, 5]²`, mapped to `[0, 1]²` internally:
+## 项目结构
 
 ```text
-f(x, y) = sum_k h_k * exp(-((x-cx_k)^2 + (y-cy_k)^2) / (2*w_k^2))
-```
-
-| Peak centre | Height | Width |
-| --- | --- | --- |
-| (2.0, 1.0) | 1.00 | 1.20 |
-| (-3.0, -2.0) | 0.85 | 1.30 |
-| (1.0, -3.0) | 0.72 | 1.00 |
-| (-1.5, 3.0) | 0.78 | 1.10 |
-| (3.5, -1.5) | 0.65 | 0.90 |
-| (-4.0, 1.5) | 0.55 | 0.80 |
-
-Fitness scaling and the reference marker use the min/max of a 200 × 200 grid. Overlapping Gaussians shift the summed maximum away from an individual peak centre; this is a sampled reference, not an exact optimum certificate. Fitness may slightly exceed 1 between grid points. Canvas y increases downward.
-
-This is an educational visualization. Runs use `Math.random()` without fixed seeds, and generations do not imply equal fitness-evaluation budgets across algorithms. The convergence chart retains the most recent 500 records. Use controlled experiments for performance claims.
-
-## Structure
-
-```text
-evo-playground/
-├── index.html              # Page and controls
-├── style.css               # Responsive layout
-├── js/
-│   ├── app.js              # UI and animation
-│   ├── utils.js            # Shared helpers
-│   ├── landscape.js        # Landscape and heatmap
-│   ├── ga.js               # Genetic algorithm
-│   ├── pso.js              # Particle swarm optimization
-│   └── de.js               # Differential evolution
-├── docs/homepage-integration.md
-├── 01_open_local.bat       # Open locally on Windows
-├── .nojekyll               # Static GitHub Pages publishing
-└── LICENSE                 # MIT
-```
-
-No build step or npm packages are required. JavaScript syntax can be checked with Node.js:
-
-```powershell
-Get-ChildItem js/*.js | ForEach-Object { node --check $_.FullName }
+index.html / style.css     页面与响应式布局
+js/app.js                  赛局、交互、粒子绘制、趋势图
+js/landscape.js            地图预设、目标函数、高清底图与等高线
+js/ga.js / pso.js / de.js   三种搜索算法
+js/utils.js                随机流与数学工具
+tests/                     Node 内置测试，无第三方依赖
+docs/homepage-integration.md
+01_open_local.bat / favicon.svg / screenshot.png
 ```
 
 ## License

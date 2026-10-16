@@ -11,9 +11,15 @@
 主页和演示分别维护、分别发布，共用 `thinker-zzp.github.io` 域名。主页根路径不变，演示位于 `/evo-playground/`。在主页“研究与探索”区或导航中添加链接即可：
 
 ```html
-<a href="https://thinker-zzp.github.io/evo-playground/">Evo Playground · 在线体验 ↗</a>
-<a href="https://github.com/thinker-zzp/evo-playground"
-   target="_blank" rel="noopener noreferrer">源码 ↗</a>
+<a href="https://thinker-zzp.github.io/evo-playground/"
+  >Evo Playground · 在线体验 ↗</a
+>
+<a
+  href="https://github.com/thinker-zzp/evo-playground"
+  target="_blank"
+  rel="noopener noreferrer"
+  >源码 ↗</a
+>
 ```
 
 演示顶部的“个人主页”链接已返回 `https://thinker-zzp.github.io/?lang=zh`。主页更新不会覆盖演示，演示更新也不会覆盖主页。
@@ -27,24 +33,31 @@
 ```html
 <article class="project-entry">
   <h3>Evo Playground</h3>
-  <p data-i18n="evoDescription">交互式进化算法演示：观察 GA、PSO 和 DE 在多峰搜索空间中的搜索过程。</p>
-  <a href="https://thinker-zzp.github.io/evo-playground/"
-     data-i18n="evoDemo">在线体验 ↗</a>
-  <a href="https://github.com/thinker-zzp/evo-playground"
-     target="_blank" rel="noopener noreferrer"
-     data-i18n="evoSource">源码 ↗</a>
+  <p data-i18n="evoDescription">
+    算法翻山记：押一支队伍，看 GA、PSO 和 DE 同场寻找峰顶，还能亲手改变地形。
+  </p>
+  <a href="https://thinker-zzp.github.io/evo-playground/" data-i18n="evoDemo"
+    >在线体验 ↗</a
+  >
+  <a
+    href="https://github.com/thinker-zzp/evo-playground"
+    target="_blank"
+    rel="noopener noreferrer"
+    data-i18n="evoSource"
+    >源码 ↗</a
+  >
 </article>
 ```
 
 在主页 `content.js` 的 `window.HOMEPAGE_EN` 对象中补齐：
 
 ```js
-evoDescription: 'An interactive visualization of GA, PSO and DE searching a multimodal landscape.',
+evoDescription: 'A playful search expedition: pick GA, PSO or DE, watch them race to the summit, and reshape the terrain.',
 evoDemo: 'Try the demo ↗',
 evoSource: 'Source code ↗',
 ```
 
-样式沿用主页现有项目条目即可。演示当前界面为英文；返回主页链接明确选择中文，不代表演示已支持 `?lang=zh`。
+样式沿用主页现有项目条目即可。演示当前界面为中文；返回主页链接明确选择中文。演示还未实现中英文切换，添加 `?lang=en` 不会翻译界面。
 
 ## 可选：iframe 嵌入
 
@@ -57,7 +70,8 @@ evoSource: 'Source code ↗',
   width="100%"
   height="760"
   loading="lazy"
-  style="border: 1px solid #ddd9d0; border-radius: 6px;">
+  style="border: 1px solid #ddd9d0; border-radius: 6px;"
+>
 </iframe>
 ```
 

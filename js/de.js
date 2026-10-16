@@ -6,28 +6,31 @@ class DifferentialEvolution {
    * @param {object} cfg  { popSize, F, CR }
    */
   constructor(landscape, cfg = {}) {
-    this.landscape  = landscape;
-    this.popSize    = cfg.popSize ?? 30;
-    this.F          = cfg.F  ?? 0.80;  // scale factor
-    this.CR         = cfg.CR ?? 0.90;  // crossover probability
+    this.landscape = landscape;
+    this.random = cfg.random ?? Math.random;
+    this.initialPositions = cfg.initialPositions;
+    this.popSize = cfg.popSize ?? 30;
+    this.F = cfg.F ?? 0.8; // scale factor
+    this.CR = cfg.CR ?? 0.9; // crossover probability
     this.generation = 0;
     this.population = [];
-    this.best       = null;
-    this.history    = [];
+    this.best = null;
+    this.history = [];
     this._init();
   }
 
   reset() {
     this.generation = 0;
     this.population = [];
-    this.best       = null;
-    this.history    = [];
+    this.best = null;
+    this.history = [];
     this._init();
   }
 
   _init() {
     for (let i = 0; i < this.popSize; i++) {
-      const x = Math.random(), y = Math.random();
+      const x = this.initialPositions?.[i]?.x ?? this.random();
+      const y = this.initialPositions?.[i]?.y ?? this.random();
       const f = this.landscape.normalised(x, y);
       this.population.push({ x, y, f, trail: [{ x, y }] });
     }
@@ -47,20 +50,22 @@ class DifferentialEvolution {
   /** Pick a random index different from all excluded indices */
   _pick(excludes, max) {
     let r;
-    do { r = Math.floor(Math.random() * max); } while (excludes.includes(r));
+    do {
+      r = Math.floor(this.random() * max);
+    } while (excludes.includes(r));
     return r;
   }
 
   step() {
-    const N    = this.population.length;
+    const N = this.population.length;
     const next = [];
 
     for (let i = 0; i < N; i++) {
       const xi = this.population[i];
 
       // Select 3 mutually distinct indices a, b, c ≠ i  (DE/rand/1)
-      const a = this._pick([i],       N);
-      const b = this._pick([i, a],    N);
+      const a = this._pick([i], N);
+      const b = this._pick([i, a], N);
       const c = this._pick([i, a, b], N);
 
       const xa = this.population[a];
@@ -72,16 +77,18 @@ class DifferentialEvolution {
       const my = clamp(xa.y + this.F * (xb.y - xc.y), 0, 1);
 
       // Binomial crossover — at least one dimension comes from mutant (jRand)
-      const jRand = Math.random() < 0.5 ? 'x' : 'y';
-      const tx = (Math.random() < this.CR || jRand === 'x') ? mx : xi.x;
-      const ty = (Math.random() < this.CR || jRand === 'y') ? my : xi.y;
+      const jRand = this.random() < 0.5 ? "x" : "y";
+      const tx = this.random() < this.CR || jRand === "x" ? mx : xi.x;
+      const ty = this.random() < this.CR || jRand === "y" ? my : xi.y;
 
       const tf = this.landscape.normalised(tx, ty);
 
       // Greedy selection: keep trial if it's at least as good
       if (tf >= xi.f) {
         next.push({
-          x: tx, y: ty, f: tf,
+          x: tx,
+          y: ty,
+          f: tf,
           trail: [...xi.trail, { x: tx, y: ty }].slice(-7),
         });
       } else {

@@ -1,185 +1,397 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Interactive visualization of Genetic Algorithm, Particle Swarm Optimization and Differential Evolution exploring a multi-modal 2D fitness landscape." />
-  <meta property="og:title" content="Evo Playground — Evolutionary Algorithm Visualizer" />
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://thinker-zzp.github.io/evo-playground/" />
-  <link rel="canonical" href="https://thinker-zzp.github.io/evo-playground/" />
-  <title>Evo Playground</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-
-  <!-- ── Header ─────────────────────────────────────────────────────────── -->
-  <header class="site-header">
-    <div class="header-inner">
-      <a class="logo" href=".">
-        <span class="logo-mark">✳</span>
-        <span class="logo-name">evo<span class="accent">playground</span></span>
-      </a>
-      <p class="tagline">evolutionary algorithms · visualized</p>
-      <a class="gh-link" href="https://thinker-zzp.github.io/?lang=zh">← 个人主页</a>
-      <a class="gh-link" href="https://github.com/thinker-zzp/evo-playground"
-         target="_blank" rel="noopener noreferrer">GitHub ↗</a>
-    </div>
-  </header>
-
-  <!-- ── Main layout ────────────────────────────────────────────────────── -->
-  <main class="main">
-    <div class="layout">
-
-      <!-- LEFT PANEL ──────────────────────────────────────────────────── -->
-      <aside class="panel">
-
-        <div class="section">
-          <h2 class="section-title">Algorithm</h2>
-          <div class="algo-tabs" role="tablist">
-            <button class="algo-tab is-active" data-algo="ga"  role="tab" aria-selected="true">GA</button>
-            <button class="algo-tab"           data-algo="pso" role="tab" aria-selected="false">PSO</button>
-            <button class="algo-tab"           data-algo="de"  role="tab" aria-selected="false">DE</button>
-          </div>
-          <p class="algo-desc" id="algo-desc">
-            <strong>Genetic Algorithm</strong> — tournament selection, BLX-α crossover, Gaussian mutation, elitism.
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f5ee" />
+    <meta
+      name="description"
+      content="一场小小的算法远征。押一支队伍，看 GA、PSO 和 DE 穿过山谷、寻找最高峰，还能亲手改变地形。"
+    />
+    <meta property="og:title" content="Evo Playground · 算法翻山记" />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:url"
+      content="https://thinker-zzp.github.io/evo-playground/"
+    />
+    <link
+      rel="canonical"
+      href="https://thinker-zzp.github.io/evo-playground/"
+    />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="style.css?v=2" />
+    <title>Evo Playground · 算法翻山记</title>
+  </head>
+  <body>
+    <header class="site-header shell">
+      <a class="brand" href="./" aria-label="Evo Playground 首页"
+        ><svg viewBox="0 0 40 40" aria-hidden="true">
+          <path d="M4 29C2 18 14 4 24 8s15 19 9 25S7 40 4 29Z" />
+          <path d="M10 27c-1-7 6-16 13-13s10 12 6 16-18 5-19-3Z" />
+          <path d="M16 25c0-3 3-7 6-5s4 6 2 7-8 1-8-2Z" /></svg
+        ><span
+          >evo<span class="brand-light">playground</span
+          ><small>A LITTLE EXPERIMENT IN SEARCH</small></span
+        ></a
+      >
+      <nav aria-label="网站导航">
+        <a href="https://thinker-zzp.github.io/?lang=zh"
+          >个人主页 <span>↗</span></a
+        ><a
+          href="https://github.com/thinker-zzp/evo-playground"
+          target="_blank"
+          rel="noopener noreferrer"
+          >GitHub <span>↗</span></a
+        >
+      </nav>
+    </header>
+    <main class="shell">
+      <section class="intro">
+        <div>
+          <p class="eyebrow">
+            <span class="green-dot"></span> EVOLUTION, WITH A LITTLE CURIOSITY
+          </p>
+          <h1>让算法，去翻山越岭<span>。</span></h1>
+          <p class="intro-copy">
+            三支队伍，同一片山谷。谁会先找到最高峰？<br
+              class="mobile-break"
+            />选一个，看看它的本事。
           </p>
         </div>
-
-        <div class="section">
-          <h2 class="section-title">Parameters</h2>
-
-          <!-- Shared parameters -->
-          <label class="param">
-            Population <span class="pval" id="v-pop">30</span>
-            <input class="slider" type="range" id="r-pop" min="5" max="80" value="30" step="5" />
-          </label>
-          <label class="param">
-            Speed <span class="pval" id="v-speed">5</span> gen/s
-            <input class="slider" type="range" id="r-speed" min="1" max="30" value="5" step="1" />
-          </label>
-
-          <!-- GA params -->
-          <div id="params-ga">
-            <label class="param">
-              Mutation rate <span class="pval" id="v-mut">0.10</span>
-              <input class="slider" type="range" id="r-mut" min="0.01" max="0.5" value="0.10" step="0.01" />
-            </label>
-            <label class="param">
-              Crossover rate <span class="pval" id="v-cross">0.80</span>
-              <input class="slider" type="range" id="r-cross" min="0.1" max="1.0" value="0.80" step="0.05" />
-            </label>
-          </div>
-
-          <!-- PSO params -->
-          <div id="params-pso" class="hidden">
-            <label class="param">
-              Inertia ω <span class="pval" id="v-w">0.73</span>
-              <input class="slider" type="range" id="r-w" min="0.1" max="1.0" value="0.729" step="0.001" />
-            </label>
-            <label class="param">
-              Cognitive c₁ <span class="pval" id="v-c1">1.49</span>
-              <input class="slider" type="range" id="r-c1" min="0.5" max="3.0" value="1.494" step="0.001" />
-            </label>
-            <label class="param">
-              Social c₂ <span class="pval" id="v-c2">1.49</span>
-              <input class="slider" type="range" id="r-c2" min="0.5" max="3.0" value="1.494" step="0.001" />
-            </label>
-          </div>
-
-          <!-- DE params -->
-          <div id="params-de" class="hidden">
-            <label class="param">
-              Scale F <span class="pval" id="v-F">0.80</span>
-              <input class="slider" type="range" id="r-F" min="0.1" max="2.0" value="0.8" step="0.05" />
-            </label>
-            <label class="param">
-              Crossover CR <span class="pval" id="v-CR">0.90</span>
-              <input class="slider" type="range" id="r-CR" min="0.0" max="1.0" value="0.9" step="0.05" />
-            </label>
-          </div>
+        <div class="intro-stamp">
+          <svg viewBox="0 0 100 60" aria-hidden="true">
+            <path d="m8 50 25-34 17 22 14-28 28 40" />
+            <path d="m25 27 8-11 8 11m16-3 7-14 10 14" />
+            <circle cx="79" cy="12" r="5" />
+            <path d="M3 54h94" /></svg
+          ><span>SMALL WORLD.<br />ENDLESS POSSIBILITIES.</span>
         </div>
+      </section>
 
-        <div class="section">
-          <div class="btn-row">
-            <button class="btn btn--primary" id="btn-run">▶ Run</button>
-            <button class="btn"             id="btn-step">Step</button>
-            <button class="btn"             id="btn-reset">↺ Reset</button>
+      <div class="workspace">
+        <section class="expedition" aria-label="算法探索地图">
+          <div class="mobile-picks">
+            <span>出发前，先押一队</span
+            ><button class="mini-vote" data-vote="ga" aria-pressed="false">
+              GA</button
+            ><button class="mini-vote" data-vote="pso" aria-pressed="false">
+              PSO</button
+            ><button class="mini-vote" data-vote="de" aria-pressed="false">
+              DE
+            </button>
           </div>
-          <p class="hint">Space · → · R<br>Population changes reset the search.</p>
-        </div>
-
-        <div class="section">
-          <h2 class="section-title">Display</h2>
-          <label class="check"><input type="checkbox" id="opt-trails"  checked /><span>Particle trails</span></label>
-          <label class="check"><input type="checkbox" id="opt-pbest"   checked /><span>Personal bests (PSO)</span></label>
-          <label class="check"><input type="checkbox" id="opt-optimum" checked /><span>Mark sampled optimum</span></label>
-        </div>
-
-      </aside>
-
-      <!-- CANVAS ──────────────────────────────────────────────────────── -->
-      <div class="canvas-wrap" id="canvas-wrap">
-        <canvas id="canvas"
+          <div class="playbar">
+            <div class="play-actions">
+              <button id="btn-run" class="primary">
+                <span id="play-symbol">▶</span
+                ><span id="play-label">出发探索</span></button
+              ><button
+                id="btn-step"
+                class="icon-button"
+                title="前进一步（右方向键）"
+                aria-label="前进一步"
+              >
+                ↦</button
+              ><button
+                id="btn-reset"
+                class="icon-button"
+                title="相同地图和种子重来（R）"
+                aria-label="重来本局"
+              >
+                ↺
+              </button>
+            </div>
+            <label class="speed-control"
+              >步调
+              <input
+                type="range"
+                id="r-speed"
+                min="1"
+                max="24"
+                value="8"
+              /><span id="v-speed">8</span><small>代 / 秒</small></label
+            >
+            <div class="generation">
+              <span id="s-gen">000</span><small>/ 120 代</small>
+            </div>
+          </div>
+          <div class="map-card">
+            <div class="map-toolbar">
+              <div class="map-title">
+                <span class="micro">THE SEARCH FIELD</span>
+                <h2 id="map-name">群峰之间</h2>
+              </div>
+              <div class="map-tools">
+                <label class="trail-switch"
+                  ><input type="checkbox" id="opt-trails" checked /><span
+                    >足迹</span
+                  ></label
+                ><button
+                  id="btn-move"
+                  class="tool-btn"
+                  aria-pressed="false"
+                  title="开启后点击地图，移动主峰并重新开局"
+                >
+                  ⚑ 搬动主峰
+                </button>
+              </div>
+            </div>
+            <div class="map-surface" id="canvas-wrap">
+              <canvas
+                id="canvas"
                 tabindex="0"
-                aria-label="Fitness landscape visualization canvas"></canvas>
-        <div class="canvas-idle" id="canvas-idle">
-          <p>Press <strong>Run</strong> to start &nbsp;·&nbsp; or <strong>Step</strong> one generation</p>
-        </div>
+                aria-label="算法探索地形图；开启搬峰模式后可点击改变地形"
+              ></canvas>
+              <div class="map-coordinate">N <span>↑</span></div>
+              <div class="terrain-key">
+                <i></i><span>低谷</span>
+                <div></div>
+                <span>山巅</span>
+              </div>
+              <div class="map-hint" id="map-hint">
+                每一小点，都是一个正在寻找答案的可能。
+              </div>
+              <div id="map-tooltip" class="map-tooltip" hidden></div>
+              <div class="move-notice" id="move-notice" hidden>
+                点击地图，把主峰搬到这里 · 本局将重新开始
+              </div>
+            </div>
+            <div class="map-bottom">
+              <div class="team-filters" role="group" aria-label="地图显示队伍">
+                <button
+                  class="filter active"
+                  data-focus="all"
+                  aria-pressed="true"
+                >
+                  一起看</button
+                ><button class="filter" data-focus="ga" aria-pressed="false">
+                  <i class="dot ga"></i>GA</button
+                ><button class="filter" data-focus="pso" aria-pressed="false">
+                  <i class="dot pso"></i>PSO</button
+                ><button class="filter" data-focus="de" aria-pressed="false">
+                  <i class="dot de"></i>DE
+                </button>
+              </div>
+              <span class="seed-label" id="seed-label">SEED 0042</span>
+            </div>
+          </div>
+
+          <section class="terrain-picker" aria-label="选择地形">
+            <div class="section-heading">
+              <h2>换个世界，再试一次</h2>
+              <button id="btn-shuffle" class="text-button">
+                随机新地图 <span>↗</span>
+              </button>
+            </div>
+            <div class="terrain-options">
+              <button
+                class="terrain-option selected"
+                data-terrain="peaks"
+                aria-pressed="true"
+              >
+                <svg viewBox="0 0 68 48" aria-hidden="true">
+                  <path
+                    d="M3 37 20 12l13 20L46 7l19 30M12 37l8-12 8 12m10 0 8-17 12 17"
+                  /></svg
+                ><span
+                  ><strong>群峰之间</strong
+                  ><small>有的捷径，会通向小山头。</small></span
+                ><span class="terrain-num">01</span>
+              </button>
+              <button
+                class="terrain-option"
+                data-terrain="islands"
+                aria-pressed="false"
+              >
+                <svg viewBox="0 0 68 48" aria-hidden="true">
+                  <ellipse cx="22" cy="22" rx="16" ry="10" />
+                  <ellipse cx="22" cy="22" rx="8" ry="5" />
+                  <ellipse cx="51" cy="33" rx="11" ry="7" />
+                  <path d="m6 42 7-2m27-30 7-2" /></svg
+                ><span
+                  ><strong>孤岛远征</strong
+                  ><small>跨过空白，才看见远方。</small></span
+                ><span class="terrain-num">02</span>
+              </button>
+              <button
+                class="terrain-option"
+                data-terrain="needle"
+                aria-pressed="false"
+              >
+                <svg viewBox="0 0 68 48" aria-hidden="true">
+                  <path
+                    d="M3 39h12L29 7l8 32h28M21 39l8-20 5 20M42 39l10-17 9 17"
+                  /></svg
+                ><span
+                  ><strong>针尖山谷</strong
+                  ><small>答案很小，世界很大。</small></span
+                ><span class="terrain-num">03</span>
+              </button>
+            </div>
+          </section>
+        </section>
+
+        <aside class="field-notes">
+          <div class="notes-heading">
+            <span class="micro">FIELD NOTES</span
+            ><span class="status" id="status"><i></i>整装待发</span>
+          </div>
+          <h2 class="notes-title">你看好哪一队？</h2>
+          <p class="notes-copy" id="vote-copy">
+            开始前押一队。率先找到 99.5% 高度的队伍，拿下这一局。
+          </p>
+          <div class="teams" id="teams">
+            <article class="team-card" data-team="ga">
+              <div class="team-top">
+                <span class="team-symbol ga">✳</span>
+                <div>
+                  <h3>GA <span>遗传算法</span></h3>
+                  <p>打散重组，偶尔灵光一现。</p>
+                </div>
+                <button class="vote" data-vote="ga" aria-pressed="false">
+                  押它
+                </button>
+              </div>
+              <div class="team-score">
+                <span id="tag-ga">重组派</span
+                ><strong id="score-ga">0<small>%</small></strong>
+              </div>
+              <div class="progress"><div id="bar-ga" class="ga"></div></div>
+            </article>
+            <article class="team-card" data-team="pso">
+              <div class="team-top">
+                <span class="team-symbol pso">↗</span>
+                <div>
+                  <h3>PSO <span>粒子群</span></h3>
+                  <p>记住好位置，也跟紧好朋友。</p>
+                </div>
+                <button class="vote" data-vote="pso" aria-pressed="false">
+                  押它
+                </button>
+              </div>
+              <div class="team-score">
+                <span id="tag-pso">追风派</span
+                ><strong id="score-pso">0<small>%</small></strong>
+              </div>
+              <div class="progress"><div id="bar-pso" class="pso"></div></div>
+            </article>
+            <article class="team-card" data-team="de">
+              <div class="team-top">
+                <span class="team-symbol de">◇</span>
+                <div>
+                  <h3>DE <span>差分进化</span></h3>
+                  <p>借别人的差异，迈自己的一步。</p>
+                </div>
+                <button class="vote" data-vote="de" aria-pressed="false">
+                  押它
+                </button>
+              </div>
+              <div class="team-score">
+                <span id="tag-de">借力派</span
+                ><strong id="score-de">0<small>%</small></strong>
+              </div>
+              <div class="progress"><div id="bar-de" class="de"></div></div>
+            </article>
+          </div>
+          <div class="dispatch" id="dispatch" role="status" aria-live="polite">
+            <span id="dispatch-icon">✧</span>
+            <div>
+              <strong id="dispatch-title">山谷准备好了。</strong>
+              <p id="dispatch-copy">你负责好奇，它们负责找路。</p>
+            </div>
+          </div>
+          <section class="chart-section">
+            <div class="section-heading">
+              <h2>离山顶，还有多远</h2>
+              <span class="micro">BEST SO FAR</span>
+            </div>
+            <canvas
+              id="chart"
+              aria-label="三种算法的最佳高度随代数变化的曲线"
+            ></canvas>
+            <div class="chart-caption">
+              <span>出发</span><span>探索代数 →</span>
+            </div>
+          </section>
+          <details class="tuning">
+            <summary>想动动参数？<span>＋</span></summary>
+            <div class="tuning-body">
+              <label for="r-pop"
+                >每队个体 <output id="v-pop">36</output
+                ><input
+                  id="r-pop"
+                  type="range"
+                  min="12"
+                  max="72"
+                  value="36"
+                  step="6" /></label
+              ><label for="r-mut"
+                >GA · 突变概率 <output id="v-mut">0.12</output
+                ><input
+                  id="r-mut"
+                  type="range"
+                  min="0.01"
+                  max="0.6"
+                  value="0.12"
+                  step="0.01" /></label
+              ><label for="r-w"
+                >PSO · 惯性 <output id="v-w">0.73</output
+                ><input
+                  id="r-w"
+                  type="range"
+                  min="0.1"
+                  max="1"
+                  value="0.729"
+                  step="0.001" /></label
+              ><label for="r-F"
+                >DE · 差分幅度 <output id="v-F">0.80</output
+                ><input
+                  id="r-F"
+                  type="range"
+                  min="0.1"
+                  max="2"
+                  value="0.8"
+                  step="0.05"
+              /></label>
+              <p>参数即时生效；改变个体数量会重新开局。</p>
+            </div>
+          </details>
+        </aside>
       </div>
-
-      <!-- RIGHT PANEL ─────────────────────────────────────────────────── -->
-      <aside class="panel">
-
-        <div class="section">
-          <h2 class="section-title">Stats</h2>
-          <dl class="stats">
-            <div class="stat-row"><dt>Generation</dt><dd id="s-gen">0</dd></div>
-            <div class="stat-row"><dt>Best fitness</dt><dd id="s-best">—</dd></div>
-            <div class="stat-row"><dt>Algorithm</dt><dd id="s-algo">GA</dd></div>
-          </dl>
-        </div>
-
-        <div class="section">
-          <h2 class="section-title">Convergence</h2>
-          <canvas id="chart" width="260" height="140"></canvas>
-          <p class="chart-cap">Normalised best fitness / generation</p>
-        </div>
-
-        <div class="section">
-          <h2 class="section-title">Legend</h2>
-          <ul class="legend">
-            <li><span class="dot dot--particle" style="background:#3d7bc8"></span>Population</li>
-            <li><span class="dot dot--best"></span>Global best</li>
-            <li><span class="dot dot--pbest"></span>Personal best (PSO)</li>
-            <li><span class="dot dot--opt"></span>Sampled optimum</li>
-          </ul>
-        </div>
-
-        <div class="section">
-          <h2 class="section-title">About</h2>
-          <p class="about">
-            A <strong>2D multi-modal landscape</strong> with 6 Gaussian peaks.
-            The strongest peak is near (2, 1) in landscape coordinates.
-            Adjust parameters and compare the search strategies. Fitness is scaled
-            using a 200 × 200 grid; the marker shows its sampled maximum.
+      <section class="how-to">
+        <span class="micro">A SMALL GUIDE TO GETTING LOST</span>
+        <div>
+          <p><span>01</span><strong>押一队</strong>凭直觉就好。</p>
+          <p>
+            <span>02</span
+            ><strong>看它找路</strong>小点是候选解，越高越接近答案。
           </p>
-          <p class="about">
-            By <a href="https://thinker-zzp.github.io" target="_blank" rel="noopener">Zhipeng Zhang</a>
-            · <a href="https://github.com/thinker-zzp/evo-playground" target="_blank" rel="noopener">Source</a>
+          <p>
+            <span>03</span><strong>给它出难题</strong>换地图，或者搬走主峰。
           </p>
         </div>
-
-      </aside>
-
-    </div><!-- .layout -->
-  </main>
-
-  <script src="js/utils.js"></script>
-  <script src="js/landscape.js"></script>
-  <script src="js/ga.js"></script>
-  <script src="js/pso.js"></script>
-  <script src="js/de.js"></script>
-  <script src="js/app.js"></script>
-</body>
+      </section>
+    </main>
+    <footer class="shell">
+      <p>
+        Made with curiosity.
+        <span
+          >by
+          <a href="https://thinker-zzp.github.io/?lang=zh"
+            >Zhipeng Zhang</a
+          ></span
+        >
+      </p>
+      <p>
+        同一起始种群 · 按代演示，非等评估预算竞赛
+        <span class="footer-shortcuts">SPACE 暂停 / → 单步 / R 重来</span>
+      </p>
+    </footer>
+    <script src="js/utils.js?v=2"></script>
+    <script src="js/landscape.js?v=2"></script>
+    <script src="js/ga.js?v=2"></script>
+    <script src="js/pso.js?v=2"></script>
+    <script src="js/de.js?v=2"></script>
+    <script src="js/app.js?v=2"></script>
+  </body>
 </html>
