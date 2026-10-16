@@ -206,7 +206,7 @@ function updateStats() {
 
 // ── Convergence chart ──────────────────────────────────────────────────────
 function drawChart() {
-  if (!algorithm || algorithm.history.length < 2) return;
+  if (!algorithm) return;
   const hist = algorithm.history;
   const W = chartCanvas.width, H = chartCanvas.height;
 
@@ -233,7 +233,7 @@ function drawChart() {
   chartCtx.lineWidth   = 1.8;
   chartCtx.lineJoin    = 'round';
   for (let i = 0; i < hist.length; i++) {
-    const x = (i / (hist.length - 1)) * W;
+    const x = hist.length > 1 ? (i / (hist.length - 1)) * W : 0;
     const y = H - hist[i] * H * 0.92 - H * 0.04;
     if (i === 0) chartCtx.moveTo(x, y);
     else         chartCtx.lineTo(x, y);
@@ -243,7 +243,7 @@ function drawChart() {
   // Dot at last value
   const lv = hist[hist.length - 1];
   chartCtx.beginPath();
-  chartCtx.arc(W - 2, H - lv * H * 0.92 - H * 0.04, 2.5, 0, Math.PI * 2);
+  chartCtx.arc(hist.length > 1 ? W - 2 : 2, H - lv * H * 0.92 - H * 0.04, 2.5, 0, Math.PI * 2);
   chartCtx.fillStyle = RED;
   chartCtx.fill();
 
@@ -308,8 +308,12 @@ document.querySelectorAll('.algo-tab').forEach(btn => {
   btn.addEventListener('click', () => {
     if (running) stopRun();
     algoKey = btn.dataset.algo;
-    document.querySelectorAll('.algo-tab').forEach(b => b.classList.remove('is-active'));
+    document.querySelectorAll('.algo-tab').forEach(b => {
+      b.classList.remove('is-active');
+      b.setAttribute('aria-selected', 'false');
+    });
     btn.classList.add('is-active');
+    btn.setAttribute('aria-selected', 'true');
     $('algo-desc').innerHTML = ALGO_DESC[algoKey];
     $('params-ga').classList.toggle('hidden',  algoKey !== 'ga');
     $('params-pso').classList.toggle('hidden', algoKey !== 'pso');
@@ -336,7 +340,22 @@ document.querySelectorAll('.algo-tab').forEach(btn => {
   if (!el) return;
   el.addEventListener('input', () => {
     document.getElementById(vid).textContent = fmt(el.value);
+    if (rid === 'r-pop') {
+      resetAll();
+    } else if (rid !== 'r-speed' && algorithm) {
+      const property = {
+        'r-mut': 'mutRate', 'r-cross': 'crossRate',
+        'r-w': 'w', 'r-c1': 'c1', 'r-c2': 'c2',
+        'r-F': 'F', 'r-CR': 'CR',
+      }[rid];
+      algorithm[property] = +el.value;
+    }
   });
+  document.getElementById(vid).textContent = fmt(el.value);
+});
+
+document.querySelectorAll('.check input').forEach(el => {
+  el.addEventListener('change', renderFrame);
 });
 
 btnRun.addEventListener('click', () => running ? stopRun() : startRun());

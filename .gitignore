@@ -1,0 +1,12 @@
+# Local previews, temporary work, and editor state
+.local/
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+

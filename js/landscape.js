@@ -2,7 +2,7 @@
 
 /**
  * Six Gaussian peaks in the search space [-5,5]^2, mapped to [0,1]^2.
- * Peak 0 is the global maximum (landscape coords: x=2, y=1 → algo: x≈0.7, y≈0.6).
+ * The strongest Gaussian is centred at (2,1). Overlap shifts the summed maximum.
  */
 class Landscape {
   constructor() {
@@ -45,7 +45,10 @@ class Landscape {
       for (let i = 0; i < res; i++) {
         const v = this.evaluate(i / (res - 1), j / (res - 1));
         if (v < mn) mn = v;
-        if (v > mx) mx = v;
+        if (v > mx) {
+          mx = v;
+          this._optimumPos = { x: i / (res - 1), y: j / (res - 1) };
+        }
       }
     }
     this._minVal = mn;
@@ -104,8 +107,9 @@ class Landscape {
     return oc;
   }
 
-  /** True global optimum position in [0,1]^2 (peak 0: landscape(2,1)) */
+  /** Maximum sampled by the same 200×200 grid used for fitness scaling. */
   get optimumPos() {
-    return { x: 0.7, y: 0.6 };
+    this._ensureRange();
+    return { ...this._optimumPos };
   }
 }

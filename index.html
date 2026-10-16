@@ -6,6 +6,8 @@
   <meta name="description" content="Interactive visualization of Genetic Algorithm, Particle Swarm Optimization and Differential Evolution exploring a multi-modal 2D fitness landscape." />
   <meta property="og:title" content="Evo Playground — Evolutionary Algorithm Visualizer" />
   <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://thinker-zzp.github.io/evo-playground/" />
+  <link rel="canonical" href="https://thinker-zzp.github.io/evo-playground/" />
   <title>Evo Playground</title>
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -19,6 +21,7 @@
         <span class="logo-name">evo<span class="accent">playground</span></span>
       </a>
       <p class="tagline">evolutionary algorithms · visualized</p>
+      <a class="gh-link" href="https://thinker-zzp.github.io/?lang=zh">← 个人主页</a>
       <a class="gh-link" href="https://github.com/thinker-zzp/evo-playground"
          target="_blank" rel="noopener noreferrer">GitHub ↗</a>
     </div>
@@ -34,9 +37,9 @@
         <div class="section">
           <h2 class="section-title">Algorithm</h2>
           <div class="algo-tabs" role="tablist">
-            <button class="algo-tab is-active" data-algo="ga"  role="tab">GA</button>
-            <button class="algo-tab"           data-algo="pso" role="tab">PSO</button>
-            <button class="algo-tab"           data-algo="de"  role="tab">DE</button>
+            <button class="algo-tab is-active" data-algo="ga"  role="tab" aria-selected="true">GA</button>
+            <button class="algo-tab"           data-algo="pso" role="tab" aria-selected="false">PSO</button>
+            <button class="algo-tab"           data-algo="de"  role="tab" aria-selected="false">DE</button>
           </div>
           <p class="algo-desc" id="algo-desc">
             <strong>Genetic Algorithm</strong> — tournament selection, BLX-α crossover, Gaussian mutation, elitism.
@@ -72,15 +75,15 @@
           <div id="params-pso" class="hidden">
             <label class="param">
               Inertia ω <span class="pval" id="v-w">0.73</span>
-              <input class="slider" type="range" id="r-w" min="0.1" max="1.0" value="0.729" step="0.01" />
+              <input class="slider" type="range" id="r-w" min="0.1" max="1.0" value="0.729" step="0.001" />
             </label>
             <label class="param">
               Cognitive c₁ <span class="pval" id="v-c1">1.49</span>
-              <input class="slider" type="range" id="r-c1" min="0.5" max="3.0" value="1.494" step="0.1" />
+              <input class="slider" type="range" id="r-c1" min="0.5" max="3.0" value="1.494" step="0.001" />
             </label>
             <label class="param">
               Social c₂ <span class="pval" id="v-c2">1.49</span>
-              <input class="slider" type="range" id="r-c2" min="0.5" max="3.0" value="1.494" step="0.1" />
+              <input class="slider" type="range" id="r-c2" min="0.5" max="3.0" value="1.494" step="0.001" />
             </label>
           </div>
 
@@ -103,14 +106,14 @@
             <button class="btn"             id="btn-step">Step</button>
             <button class="btn"             id="btn-reset">↺ Reset</button>
           </div>
-          <p class="hint">Space · → · R</p>
+          <p class="hint">Space · → · R<br>Population changes reset the search.</p>
         </div>
 
         <div class="section">
           <h2 class="section-title">Display</h2>
           <label class="check"><input type="checkbox" id="opt-trails"  checked /><span>Particle trails</span></label>
           <label class="check"><input type="checkbox" id="opt-pbest"   checked /><span>Personal bests (PSO)</span></label>
-          <label class="check"><input type="checkbox" id="opt-optimum" checked /><span>Mark true optimum</span></label>
+          <label class="check"><input type="checkbox" id="opt-optimum" checked /><span>Mark sampled optimum</span></label>
         </div>
 
       </aside>
@@ -149,7 +152,7 @@
             <li><span class="dot dot--particle" style="background:#3d7bc8"></span>Population</li>
             <li><span class="dot dot--best"></span>Global best</li>
             <li><span class="dot dot--pbest"></span>Personal best (PSO)</li>
-            <li><span class="dot dot--opt"></span>True optimum</li>
+            <li><span class="dot dot--opt"></span>Sampled optimum</li>
           </ul>
         </div>
 
@@ -157,8 +160,9 @@
           <h2 class="section-title">About</h2>
           <p class="about">
             A <strong>2D multi-modal landscape</strong> with 6 Gaussian peaks.
-            The global maximum sits in the upper-right region; 5 local optima
-            act as traps. Adjust parameters and compare how each strategy escapes them.
+            The strongest peak is near (2, 1) in landscape coordinates.
+            Adjust parameters and compare the search strategies. Fitness is scaled
+            using a 200 × 200 grid; the marker shows its sampled maximum.
           </p>
           <p class="about">
             By <a href="https://thinker-zzp.github.io" target="_blank" rel="noopener">Zhipeng Zhang</a>
