@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Interactive visualization of Genetic Algorithm, Particle Swarm Optimization and Differential Evolution exploring a multi-modal 2D fitness landscape." />
+  <meta property="og:title" content="Evo Playground — Evolutionary Algorithm Visualizer" />
+  <meta property="og:type" content="website" />
+  <title>Evo Playground</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="logo" href=".">
+        <span class="logo-mark">✳</span>
+        <span class="logo-name">evo<span class="accent">playground</span></span>
+      </a>
+      <p class="tagline">evolutionary algorithms · visualized</p>
+      <a class="gh-link" href="https://github.com/thinker-zzp/evo-playground"
+         target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+    </div>
+  </header>
+
+  <!-- ── Main layout ────────────────────────────────────────────────────── -->
+  <main class="main">
+    <div class="layout">
+
+      <!-- LEFT PANEL ──────────────────────────────────────────────────── -->
+      <aside class="panel">
+
+        <div class="section">
+          <h2 class="section-title">Algorithm</h2>
+          <div class="algo-tabs" role="tablist">
+            <button class="algo-tab is-active" data-algo="ga"  role="tab">GA</button>
+            <button class="algo-tab"           data-algo="pso" role="tab">PSO</button>
+            <button class="algo-tab"           data-algo="de"  role="tab">DE</button>
+          </div>
+          <p class="algo-desc" id="algo-desc">
+            <strong>Genetic Algorithm</strong> — tournament selection, BLX-α crossover, Gaussian mutation, elitism.
+          </p>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">Parameters</h2>
+
+          <!-- Shared parameters -->
+          <label class="param">
+            Population <span class="pval" id="v-pop">30</span>
+            <input class="slider" type="range" id="r-pop" min="5" max="80" value="30" step="5" />
+          </label>
+          <label class="param">
+            Speed <span class="pval" id="v-speed">5</span> gen/s
+            <input class="slider" type="range" id="r-speed" min="1" max="30" value="5" step="1" />
+          </label>
+
+          <!-- GA params -->
+          <div id="params-ga">
+            <label class="param">
+              Mutation rate <span class="pval" id="v-mut">0.10</span>
+              <input class="slider" type="range" id="r-mut" min="0.01" max="0.5" value="0.10" step="0.01" />
+            </label>
+            <label class="param">
+              Crossover rate <span class="pval" id="v-cross">0.80</span>
+              <input class="slider" type="range" id="r-cross" min="0.1" max="1.0" value="0.80" step="0.05" />
+            </label>
+          </div>
+
+          <!-- PSO params -->
+          <div id="params-pso" class="hidden">
+            <label class="param">
+              Inertia ω <span class="pval" id="v-w">0.73</span>
+              <input class="slider" type="range" id="r-w" min="0.1" max="1.0" value="0.729" step="0.01" />
+            </label>
+            <label class="param">
+              Cognitive c₁ <span class="pval" id="v-c1">1.49</span>
+              <input class="slider" type="range" id="r-c1" min="0.5" max="3.0" value="1.494" step="0.1" />
+            </label>
+            <label class="param">
+              Social c₂ <span class="pval" id="v-c2">1.49</span>
+              <input class="slider" type="range" id="r-c2" min="0.5" max="3.0" value="1.494" step="0.1" />
+            </label>
+          </div>
+
+          <!-- DE params -->
+          <div id="params-de" class="hidden">
+            <label class="param">
+              Scale F <span class="pval" id="v-F">0.80</span>
+              <input class="slider" type="range" id="r-F" min="0.1" max="2.0" value="0.8" step="0.05" />
+            </label>
+            <label class="param">
+              Crossover CR <span class="pval" id="v-CR">0.90</span>
+              <input class="slider" type="range" id="r-CR" min="0.0" max="1.0" value="0.9" step="0.05" />
+            </label>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="btn-row">
+            <button class="btn btn--primary" id="btn-run">▶ Run</button>
+            <button class="btn"             id="btn-step">Step</button>
+            <button class="btn"             id="btn-reset">↺ Reset</button>
+          </div>
+          <p class="hint">Space · → · R</p>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">Display</h2>
+          <label class="check"><input type="checkbox" id="opt-trails"  checked /><span>Particle trails</span></label>
+          <label class="check"><input type="checkbox" id="opt-pbest"   checked /><span>Personal bests (PSO)</span></label>
+          <label class="check"><input type="checkbox" id="opt-optimum" checked /><span>Mark true optimum</span></label>
+        </div>
+
+      </aside>
+
+      <!-- CANVAS ──────────────────────────────────────────────────────── -->
+      <div class="canvas-wrap" id="canvas-wrap">
+        <canvas id="canvas"
+                tabindex="0"
+                aria-label="Fitness landscape visualization canvas"></canvas>
+        <div class="canvas-idle" id="canvas-idle">
+          <p>Press <strong>Run</strong> to start &nbsp;·&nbsp; or <strong>Step</strong> one generation</p>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL ─────────────────────────────────────────────────── -->
+      <aside class="panel">
+
+        <div class="section">
+          <h2 class="section-title">Stats</h2>
+          <dl class="stats">
+            <div class="stat-row"><dt>Generation</dt><dd id="s-gen">0</dd></div>
+            <div class="stat-row"><dt>Best fitness</dt><dd id="s-best">—</dd></div>
+            <div class="stat-row"><dt>Algorithm</dt><dd id="s-algo">GA</dd></div>
+          </dl>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">Convergence</h2>
+          <canvas id="chart" width="260" height="140"></canvas>
+          <p class="chart-cap">Normalised best fitness / generation</p>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">Legend</h2>
+          <ul class="legend">
+            <li><span class="dot dot--particle" style="background:#3d7bc8"></span>Population</li>
+            <li><span class="dot dot--best"></span>Global best</li>
+            <li><span class="dot dot--pbest"></span>Personal best (PSO)</li>
+            <li><span class="dot dot--opt"></span>True optimum</li>
+          </ul>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">About</h2>
+          <p class="about">
+            A <strong>2D multi-modal landscape</strong> with 6 Gaussian peaks.
+            The global maximum sits in the upper-right region; 5 local optima
+            act as traps. Adjust parameters and compare how each strategy escapes them.
+          </p>
+          <p class="about">
+            By <a href="https://thinker-zzp.github.io" target="_blank" rel="noopener">Zhipeng Zhang</a>
+            · <a href="https://github.com/thinker-zzp/evo-playground" target="_blank" rel="noopener">Source</a>
+          </p>
+        </div>
+
+      </aside>
+
+    </div><!-- .layout -->
+  </main>
+
+  <script src="js/utils.js"></script>
+  <script src="js/landscape.js"></script>
+  <script src="js/ga.js"></script>
+  <script src="js/pso.js"></script>
+  <script src="js/de.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
