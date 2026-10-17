@@ -1,130 +1,67 @@
-// ga.js — Real-valued Genetic Algorithm
-
+// Real-valued GA: tournament selection, BLX-alpha, per-coordinate mutation.
 class GeneticAlgorithm {
-  /**
-   * @param {Landscape} landscape
-   * @param {object} cfg  { popSize, mutRate, crossRate }
-   */
   constructor(landscape, cfg = {}) {
     this.landscape = landscape;
+    this.cfg = cfg;
     this.random = cfg.random ?? Math.random;
-    this.initialPositions = cfg.initialPositions;
     this.popSize = cfg.popSize ?? 30;
     this.mutRate = cfg.mutRate ?? 0.1;
     this.crossRate = cfg.crossRate ?? 0.8;
-    this.generation = 0;
-    this.population = [];
-    this.best = null;
-    this.history = []; // best normalised fitness per generation
-    this._init();
+    this.reset();
   }
-
   reset() {
     this.generation = 0;
-    this.population = [];
     this.best = null;
     this.history = [];
-    this._init();
-  }
-
-  _init() {
-    for (let i = 0; i < this.popSize; i++) {
-      const x = this.initialPositions?.[i]?.x ?? this.random();
-      const y = this.initialPositions?.[i]?.y ?? this.random();
-      this.population.push(this._makeInd(x, y));
-    }
+    this.population = Array.from({ length: this.popSize }, (_, i) =>
+      this._makeInd(startingVector(this.landscape, this.cfg, i, this.random)),
+    );
     this._updateBest();
   }
-
-  _makeInd(x, y) {
-    return {
-      x,
-      y,
-      f: this.landscape.normalised(x, y),
-      trail: [{ x, y }],
-    };
+  _makeInd(position) {
+    return searchPoint(position, {
+      f: vectorFitness(this.landscape, position),
+      trail: [searchPoint(position)],
+    });
   }
-
   _updateBest() {
-    for (const ind of this.population) {
-      if (!this.best || ind.f > this.best.f) {
-        this.best = { x: ind.x, y: ind.y, f: ind.f };
-      }
-    }
+    for (const p of this.population)
+      if (!this.best || p.f > this.best.f)
+        this.best = searchPoint(p.position, { f: p.f });
     this.history.push(this.best.f);
     if (this.history.length > 500) this.history.shift();
   }
-
-  /** Tournament selection (k = 3) */
   _tournament() {
-    let winner = null;
+    let best = null;
     for (let i = 0; i < 3; i++) {
-      const c =
-        this.population[Math.floor(this.random() * this.population.length)];
-      if (!winner || c.f > winner.f) winner = c;
+      const p = this.population[Math.floor(this.random() * this.popSize)];
+      if (!best || p.f > best.f) best = p;
     }
-    return winner;
+    return best;
   }
-
-  /** BLX-α crossover (α = 0.5) */
-  _blx(a, b) {
-    const alpha = 0.5;
-    const blx1d = (av, bv) => {
-      const lo = Math.min(av, bv),
-        hi = Math.max(av, bv),
-        d = hi - lo;
-      return clamp(lo - alpha * d + this.random() * d * (1 + 2 * alpha), 0, 1);
-    };
-    return { x: blx1d(a.x, b.x), y: blx1d(a.y, b.y) };
-  }
-
   step() {
-    const next = [];
-
-    // Elitism: carry the best individual unchanged
-    const eliteOrig = this.population.find(
-      (p) => p.x === this.best.x && p.y === this.best.y,
-    );
-    next.push({
-      x: this.best.x,
-      y: this.best.y,
-      f: this.best.f,
-      trail: eliteOrig
-        ? [...eliteOrig.trail]
-        : [{ x: this.best.x, y: this.best.y }],
-    });
-
+    const next = [this._makeInd(this.best.position)];
     while (next.length < this.popSize) {
-      const p1 = this._tournament();
-      const p2 = this._tournament();
-
-      // Crossover
-      let cx, cy;
-      if (this.random() < this.crossRate) {
-        const c = this._blx(p1, p2);
-        cx = c.x;
-        cy = c.y;
-      } else {
-        cx = p1.x;
-        cy = p1.y;
-      }
-
-      // Gaussian mutation (independent per dimension)
-      if (this.random() < this.mutRate)
-        cx = clamp(cx + gaussRand(this.random) * 0.08, 0, 1);
-      if (this.random() < this.mutRate)
-        cy = clamp(cy + gaussRand(this.random) * 0.08, 0, 1);
-
-      const child = this._makeInd(cx, cy);
-
-      // Trail: extend from the closer parent
-      const src =
-        dist2(cx, cy, p1.x, p1.y) < dist2(cx, cy, p2.x, p2.y) ? p1 : p2;
-      child.trail = [...src.trail, { x: cx, y: cy }].slice(-7);
-
+      const a = this._tournament(),
+        b = this._tournament(),
+        cross = this.random() < this.crossRate;
+      const position = a.position.map((v, j) => {
+        if (cross) {
+          const lo = Math.min(v, b.position[j]),
+            span = Math.abs(v - b.position[j]);
+          v = clamp(lo - 0.5 * span + this.random() * span * 2, 0, 1);
+        }
+        if (this.random() < this.mutRate)
+          v = clamp(v + gaussRand(this.random) * 0.08, 0, 1);
+        return v;
+      });
+      const child = this._makeInd(position);
+      const distance = (p) =>
+        position.reduce((sum, v, j) => sum + (v - p.position[j]) ** 2, 0);
+      const parent = distance(a) < distance(b) ? a : b;
+      child.trail = [...parent.trail, searchPoint(position)].slice(-7);
       next.push(child);
     }
-
     this.population = next;
     this.generation++;
     this._updateBest();

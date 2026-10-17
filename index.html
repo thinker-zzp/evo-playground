@@ -19,7 +19,7 @@
       href="https://thinker-zzp.github.io/evo-playground/"
     />
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="style.css?v=4" />
+    <link rel="stylesheet" href="style.css?v=5" />
     <title>Evo Playground · 算法翻山记</title>
   </head>
   <body>
@@ -53,7 +53,7 @@
           </p>
           <h1>让算法，去翻山越岭<span>。</span></h1>
           <p class="intro-copy">
-            三支队伍，同一片山谷。谁会先找到最高峰？<br
+            三支队伍，十维未知。谁能穿过看不见的山谷？<br
               class="mobile-break"
             />选一个，看看它的本事。
           </p>
@@ -111,8 +111,16 @@
                 value="8"
               /><span id="v-speed">8</span><small>代 / 秒</small></label
             >
+            <label class="dimension-control"
+              >维度
+              <select id="dimension" aria-label="搜索维度">
+                <option value="2">D = 2</option>
+                <option value="3">D = 3</option>
+                <option value="10" selected>D = 10</option>
+              </select></label
+            >
             <div class="generation">
-              <span id="s-gen">000</span><small>/ 120 代</small>
+              <span id="s-gen">000</span><small>/ 100 代</small>
             </div>
           </div>
           <div class="map-card">
@@ -155,6 +163,35 @@
               <div class="move-notice" id="move-notice" hidden>
                 点击地图，把主峰搬到这里 · 本局将重新开始
               </div>
+            </div>
+            <div id="slice-panel" class="slice-panel">
+              <div class="slice-controls">
+                <span class="micro">打开高维世界的一扇窗</span>
+                <label
+                  >横轴
+                  <select id="axis-x" aria-label="投影横轴"></select
+                ></label>
+                <label
+                  >纵轴
+                  <select id="axis-y" aria-label="投影纵轴"></select
+                ></label>
+                <label
+                  >切片经过
+                  <select
+                    id="slice-anchor"
+                    aria-label="切片固定坐标来源"
+                  ></select
+                ></label>
+                <button
+                  id="slice-apply"
+                  class="tool-btn"
+                  title="取所选队伍此刻的最佳向量，更新切片"
+                >
+                  更新切片 ↻
+                </button>
+              </div>
+              <p id="projection-note"></p>
+              <p id="slice-coordinates" class="slice-coordinates"></p>
             </div>
             <p id="benchmark-note" class="benchmark-note"></p>
             <a
@@ -295,7 +332,7 @@
           </div>
           <h2 class="notes-title">你看好哪一队？</h2>
           <p class="notes-copy" id="vote-copy">
-            开始前押一队。实际目标误差 ≤ 0.001 才算解出；本局 120 代。
+            开始前押一队。实际目标误差 ≤ 0.001 才算解出；本局 100 代。
           </p>
           <div class="teams" id="teams">
             <article class="team-card" data-team="ga">
@@ -359,7 +396,7 @@
           </div>
           <section class="chart-section">
             <div class="section-heading">
-              <h2>距最优解，还有多远</h2>
+              <h2 id="chart-title">距最优解，还有多远</h2>
               <span class="micro" id="chart-scale">Δf · LOG SCALE</span>
             </div>
             <canvas
@@ -368,6 +405,25 @@
             ></canvas>
             <div class="chart-caption">
               <span>出发</span><span>探索代数 →</span>
+            </div>
+          </section>
+          <section id="vector-section" class="vector-section">
+            <div class="section-heading">
+              <h2>把看不见的维度，展开</h2>
+              <span class="micro">FULL VECTOR</span>
+            </div>
+            <svg
+              id="vector-chart"
+              viewBox="0 0 510 146"
+              role="img"
+              aria-label="三队完整最佳解与参考最优的平行坐标图"
+            ></svg>
+            <p id="vector-caption"></p>
+            <div class="vector-legend">
+              <span><i class="dot ga"></i>GA</span
+              ><span><i class="dot pso"></i>PSO</span
+              ><span><i class="dot de"></i>DE</span
+              ><span id="reference-legend">┄ 参考最优</span>
             </div>
           </section>
           <details class="tuning">
@@ -445,12 +501,12 @@
         <span class="footer-shortcuts">SPACE 暂停 / → 单步 / R 重来</span>
       </p>
     </footer>
-    <script src="js/utils.js?v=4"></script>
-    <script src="js/landscape.js?v=4"></script>
-    <script src="js/benchmarks.js?v=4"></script>
-    <script src="js/ga.js?v=4"></script>
-    <script src="js/pso.js?v=4"></script>
-    <script src="js/de.js?v=4"></script>
-    <script src="js/app.js?v=4"></script>
+    <script src="js/utils.js?v=5"></script>
+    <script src="js/landscape.js?v=5"></script>
+    <script src="js/benchmarks.js?v=5"></script>
+    <script src="js/ga.js?v=5"></script>
+    <script src="js/pso.js?v=5"></script>
+    <script src="js/de.js?v=5"></script>
+    <script src="js/app.js?v=5"></script>
   </body>
 </html>

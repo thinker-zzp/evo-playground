@@ -1,5 +1,26 @@
 // utils.js — Shared utility functions
 
+// x/y are compatibility aliases; optimization always uses the full vector.
+function searchPoint(position, extra = {}) {
+  return { x: position[0], y: position[1], position: [...position], ...extra };
+}
+function startingVector(field, cfg, index, random) {
+  const p = cfg.initialPositions?.[index];
+  return Array.from(
+    { length: field.dimension || 2 },
+    (_, j) =>
+      p?.position?.[j] ??
+      p?.[j] ??
+      (j === 0 ? p?.x : j === 1 ? p?.y : undefined) ??
+      random(),
+  );
+}
+function vectorFitness(field, position) {
+  return field.isBenchmark
+    ? field.fitness(position)
+    : field.normalised(...position);
+}
+
 /** Clamp v to [lo, hi] */
 function clamp(v, lo, hi) {
   return v < lo ? lo : v > hi ? hi : v;

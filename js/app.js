@@ -19,7 +19,7 @@ const TERRAIN_NAMES = {
   sop5: "SOP F5 · Rosenbrock",
   sop8: "SOP F8 · Schwefel",
 };
-const LIMIT = 120,
+const LIMIT = 100,
   TARGET = 0.995;
 const canvas = $("canvas"),
   ctx = canvas.getContext("2d");
@@ -28,6 +28,7 @@ const chart = $("chart"),
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 let seed = 42,
   preset = "sop8",
+  dimension = 10,
   field = makeField(preset, seed),
   teams = [];
 let running = false,
@@ -78,18 +79,17 @@ function setRunning(value) {
 }
 function makeField(key, value) {
   return ["sop5", "sop8", "sop9", "sop10"].includes(key)
-    ? new BenchmarkField(key, value)
+    ? new BenchmarkField(key, value, dimension)
     : new Landscape(key, value);
 }
 function initialPositions() {
   const random = seededRandom(seed ^ 0xa1b2c3d4);
-  return Array.from({ length: +$("r-pop").value }, () => ({
-    x: random(),
-    y: random(),
-  }));
+  return Array.from({ length: +$("r-pop").value }, () =>
+    searchPoint(Array.from({ length: field.dimension || 2 }, () => random())),
+  );
 }
 function errorOf(team) {
-  return field.error(team.algo.best.x, team.algo.best.y);
+  return field.errorVector(team.algo.best.position);
 }
 function chartHeightOf(fitness) {
   if (!field.isBenchmark) return clamp(fitness, 0, 1);
@@ -117,7 +117,7 @@ function resetRace() {
       key,
       ...meta,
       algo,
-      previous: algo.population.map((p) => ({ x: p.x, y: p.y })),
+      previous: algo.population.map((p) => searchPoint(p.position)),
       reached: null,
     };
   });
@@ -125,11 +125,13 @@ function resetRace() {
   $("map-name").textContent = TERRAIN_NAMES[preset];
   $("map-hint").textContent = "每一小点，都是一个正在寻找答案的可能。";
   $("vote-copy").textContent = field.isBenchmark
-    ? "开始前押一队。实际目标误差 ≤ 0.001 才算解出；本局 120 代。"
+    ? field.hasKnownOptimum
+      ? "开始前押一队。完整向量的误差 ≤ 0.001 才算解出；本局 100 代。"
+      : "本局 100 代，比较完整向量的目标值 f。F5 高维只比较 f，不判定解出。"
     : "开始前押一队。率先找到 99.5% 高度的队伍，拿下这一局。";
   $("benchmark-note").hidden = !field.isBenchmark;
   $("benchmark-note").textContent = field.isBenchmark
-    ? `NeuroEA SOP · D=2 · [${field.bounds.join(", ")}]² · f*=${field.fOpt.toFixed(6)} · seed 只改搜索随机性`
+    ? `NeuroEA SOP · D=${field.dimension} · [${field.bounds.join(", ")}]^${field.dimension} · ${field.hasKnownOptimum ? "f*=" + field.fOpt.toFixed(6) : "高维 F5 的约束最优值未核定，显示原始 f"} · seed 只改搜索随机性`
     : "";
   $("btn-move").disabled = !!field.isBenchmark;
   if (moving) setMoving(false);
@@ -137,12 +139,21 @@ function resetRace() {
     ? "换搜索种子 ↗"
     : "随机新地图 ↗";
   $("chart-scale").textContent = field.isBenchmark
-    ? "Δf · LOG SCALE"
+    ? field.hasKnownOptimum
+      ? "Δf · ALL DIMENSIONS"
+      : "f · ALL DIMENSIONS"
     : "BEST SO FAR";
+  $("chart-title").textContent =
+    field.isBenchmark && !field.hasKnownOptimum
+      ? "目标值，还能降多少"
+      : "距最优解，还有多远";
+  $("reference-legend").hidden = field.isBenchmark && !field.hasKnownOptimum;
   $("chart").setAttribute(
     "aria-label",
     field.isBenchmark
-      ? "三队目标误差随代数变化的对数曲线"
+      ? field.hasKnownOptimum
+        ? "三队完整 D 维目标误差随代数变化的对数曲线"
+        : "三队完整 D 维目标值 f 随代数变化的对数曲线"
       : "三队最佳高度随代数变化的曲线",
   );
   $("dispatch").classList.remove("celebrate");
@@ -157,6 +168,9 @@ function resetRace() {
   document
     .querySelectorAll("[data-team]")
     .forEach((card) => card.classList.remove("chosen", "winner"));
+  if (field.isBenchmark)
+    field.setView(field.axes, Array(field.dimension).fill(0.5));
+  configureView();
   updateStats();
   setRunning(false);
   dirty = true;
@@ -183,7 +197,11 @@ function updateStats() {
         field.isBenchmark ? errorOf(team).toExponential(2) : score.toFixed(1),
       ),
       Object.assign(document.createElement("small"), {
-        textContent: field.isBenchmark ? " Δf" : "%",
+        textContent: field.isBenchmark
+          ? field.hasKnownOptimum
+            ? " Δf"
+            : " f"
+          : "%",
       }),
     );
     $("bar-" + team.key).style.width = score + "%";
@@ -193,11 +211,12 @@ function updateStats() {
         : META[team.key].title;
   }
   drawChart();
+  drawVectors();
 }
 function advance(now = performance.now()) {
   if (generation >= LIMIT) return;
   for (const team of teams) {
-    team.previous = team.algo.population.map((p) => ({ x: p.x, y: p.y }));
+    team.previous = team.algo.population.map((p) => searchPoint(p.position));
     team.algo.step();
   }
   generation++;
@@ -206,7 +225,7 @@ function advance(now = performance.now()) {
     (team) =>
       team.reached === null &&
       (field.isBenchmark
-        ? errorOf(team) <= field.tolerance
+        ? field.hasKnownOptimum && errorOf(team) <= field.tolerance
         : team.algo.best.f >= TARGET),
   );
   arrived.forEach((team) => (team.reached = generation));
@@ -242,7 +261,9 @@ function advance(now = performance.now()) {
     if (!winners.length)
       announce(
         "这座山，还留着一点悬念。",
-        "120 代暂未抵达目标。换个世界，或者调调参数再试。",
+        field.isBenchmark && !field.hasKnownOptimum
+          ? "100 代结束。比较右侧 f，数值越小越好。"
+          : "100 代暂未抵达目标。换个世界，或者调调参数再试。",
         "∿",
       );
     else $("map-hint").textContent = "这趟远征告一段落。换一张地图，再来一局？";
@@ -366,20 +387,23 @@ function paint(now) {
         if (p.trail.length < 2) continue;
         ctx.globalAlpha = visible ? 0.19 : 0.025;
         ctx.beginPath();
-        p.trail.forEach((pos, i) =>
-          i
-            ? ctx.lineTo(pos.x * width, pos.y * height)
-            : ctx.moveTo(pos.x * width, pos.y * height),
-        );
+        p.trail
+          .map(project)
+          .forEach((pos, i) =>
+            i
+              ? ctx.lineTo(pos.x * width, pos.y * height)
+              : ctx.moveTo(pos.x * width, pos.y * height),
+          );
         ctx.stroke();
       }
     }
     ctx.globalAlpha = visible ? 0.88 : 0.11;
     team.algo.population.forEach((p, i) => {
-      const old = team.previous[i] || p;
+      const old = project(team.previous[i] || p),
+        point = project(p);
       // Interpolation is a visual transition, not an extra algorithm update.
-      const x = (old.x + (p.x - old.x) * eased) * width,
-        y = (old.y + (p.y - old.y) * eased) * height;
+      const x = (old.x + (point.x - old.x) * eased) * width,
+        y = (old.y + (point.y - old.y) * eased) * height;
       const jitter =
         generation === 0 ? (Object.keys(META).indexOf(team.key) - 1) * 2 : 0;
       ctx.beginPath();
@@ -399,7 +423,10 @@ function paint(now) {
       if (team.key === "pso" && visible && generation > 0) {
         ctx.beginPath();
         ctx.moveTo(x, y);
-        ctx.lineTo(x - p.vx * width * 0.4, y - p.vy * height * 0.4);
+        ctx.lineTo(
+          x - p.velocity[field.axes?.[0] ?? 0] * width * 0.4,
+          y - p.velocity[field.axes?.[1] ?? 1] * height * 0.4,
+        );
         ctx.strokeStyle = team.color;
         ctx.lineWidth = 1.2;
         ctx.stroke();
@@ -407,8 +434,9 @@ function paint(now) {
     });
     // Ring each team's best point; compact labels are kept apart near the summit.
     if (visible && generation > 0) {
-      const bx = team.algo.best.x * width,
-        by = team.algo.best.y * height;
+      const best = project(team.algo.best),
+        bx = best.x * width,
+        by = best.y * height;
       ctx.globalAlpha = 0.9;
       ctx.beginPath();
       ctx.arc(bx, by, 6.5, 0, Math.PI * 2);
@@ -437,63 +465,80 @@ function paint(now) {
     ctx.restore();
   }
   // A small flag and softly breathing survey ring mark the sampled summit.
-  const optimum = field.optimumPos,
-    ox = optimum.x * width,
-    oy = optimum.y * height;
-  const pulse = reducedMotion.matches ? 0 : (Math.sin(now * 0.002) + 1) / 2;
-  ctx.strokeStyle = "#55734880";
-  ctx.lineWidth = 1;
-  ctx.setLineDash([2, 4]);
-  ctx.beginPath();
-  ctx.arc(ox, oy, 12 + pulse * 3, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.beginPath();
-  ctx.moveTo(ox, oy - 2);
-  ctx.lineTo(ox, oy - 23);
-  ctx.strokeStyle = "#516d42";
-  ctx.lineWidth = 1.4;
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(ox + 1, oy - 23);
-  ctx.lineTo(ox + 14, oy - 19);
-  ctx.lineTo(ox + 1, oy - 14);
-  ctx.closePath();
-  ctx.fillStyle = "#547b45";
-  ctx.fill();
-  if (generation === 0 || moving) {
-    ctx.font = '9px "Microsoft YaHei", sans-serif';
-    ctx.fillStyle = "#587444";
-    ctx.textAlign = "center";
-    ctx.fillText(field.isBenchmark ? "最优解" : "山顶在这里", ox, oy - 33);
-  }
-  if (hover && moving) {
-    ctx.strokeStyle = "#395b4670";
-    ctx.setLineDash([3, 4]);
+  const optimum = field.optimumPos;
+  if (optimum) {
+    const ox = optimum.x * width,
+      oy = optimum.y * height;
+    const pulse = reducedMotion.matches ? 0 : (Math.sin(now * 0.002) + 1) / 2;
+    ctx.strokeStyle = "#55734880";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 4]);
     ctx.beginPath();
-    ctx.arc(hover.x * width, hover.y * height, 17, 0, Math.PI * 2);
+    ctx.arc(ox, oy, 12 + pulse * 3, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
-  }
-  const elapsed = now - celebrationTime;
-  if (elapsed < 1700 && !reducedMotion.matches) {
-    const t = elapsed / 1700;
-    for (let i = 0; i < 22; i++) {
-      const angle = i * 2.39996,
-        rad = 20 + t * (70 + (i % 4) * 12),
-        x = ox + Math.cos(angle) * rad,
-        y = oy + Math.sin(angle) * rad + t * t * 40;
-      ctx.globalAlpha = 1 - t;
-      ctx.fillStyle = [...winners.map((k) => META[k].color), "#e8c46e"][
-        i % (winners.length + 1)
-      ];
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(angle + t * 3);
-      ctx.fillRect(-2, -1, 4, 2);
-      ctx.restore();
+    ctx.beginPath();
+    ctx.moveTo(ox, oy - 2);
+    ctx.lineTo(ox, oy - 23);
+    ctx.strokeStyle = "#516d42";
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(ox + 1, oy - 23);
+    ctx.lineTo(ox + 14, oy - 19);
+    ctx.lineTo(ox + 1, oy - 14);
+    ctx.closePath();
+    ctx.fillStyle = "#547b45";
+    ctx.fill();
+    if (generation === 0 || moving) {
+      ctx.font = '9px "Microsoft YaHei", sans-serif';
+      ctx.fillStyle = "#587444";
+      ctx.textAlign = "center";
+      ctx.fillText(
+        field.isBenchmark
+          ? field.dimension > 2
+            ? "最优向量投影"
+            : "最优解"
+          : "山顶在这里",
+        clamp(ox, 50, width - 50),
+        clamp(oy - 33, 14, height - 14),
+      );
     }
-    ctx.globalAlpha = 1;
+    if (hover && moving) {
+      ctx.strokeStyle = "#395b4670";
+      ctx.setLineDash([3, 4]);
+      ctx.beginPath();
+      ctx.arc(hover.x * width, hover.y * height, 17, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    const elapsed = now - celebrationTime;
+    if (elapsed < 1700 && !reducedMotion.matches) {
+      const t = elapsed / 1700;
+      for (let i = 0; i < 22; i++) {
+        const angle = i * 2.39996,
+          rad = 20 + t * (70 + (i % 4) * 12),
+          x = ox + Math.cos(angle) * rad,
+          y = oy + Math.sin(angle) * rad + t * t * 40;
+        ctx.globalAlpha = 1 - t;
+        ctx.fillStyle = [...winners.map((k) => META[k].color), "#e8c46e"][
+          i % (winners.length + 1)
+        ];
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle + t * 3);
+        ctx.fillRect(-2, -1, 4, 2);
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+  if (field.isBenchmark) {
+    ctx.fillStyle = "#45613c";
+    ctx.font = "10px Consolas, monospace";
+    ctx.textAlign = "left";
+    ctx.fillText(`x${field.axes[0] + 1} →`, 12, height - 13);
+    ctx.fillText(`x${field.axes[1] + 1} ↓`, 12, 23);
   }
 }
 function tick(now) {
@@ -513,6 +558,122 @@ function tick(now) {
   }
   requestAnimationFrame(tick);
 }
+function project(p) {
+  return field.isBenchmark ? field.project(p) : p;
+}
+function configureView() {
+  const d = field.dimension || 2;
+  $("dimension").value = String(d);
+  $("dimension").disabled = !field.isBenchmark;
+  $("slice-panel").hidden = !field.isBenchmark;
+  $("vector-section").hidden = !field.isBenchmark;
+  if (!field.isBenchmark) return;
+  for (const [id, index] of [
+    ["axis-x", 0],
+    ["axis-y", 1],
+  ]) {
+    $(id).innerHTML = Array.from(
+      { length: d },
+      (_, j) => `<option value="${j}">x${j + 1}</option>`,
+    ).join("");
+    $(id).value = String(field.axes[index]);
+  }
+  $("slice-anchor").value = "center";
+  $("slice-apply").disabled = d === 2;
+  $("slice-anchor").disabled = d === 2;
+  $("slice-anchor").innerHTML =
+    '<option value="center">可行域中心</option>' +
+    (field.hasKnownOptimum
+      ? '<option value="reference">参考最优向量</option>'
+      : "") +
+    '<option value="ga">GA 最佳快照</option><option value="pso">PSO 最佳快照</option><option value="de">DE 最佳快照</option>';
+  $("slice-anchor").value = "center";
+  updateViewNote();
+}
+function updateViewNote() {
+  const d = field.dimension;
+  $("projection-note").textContent =
+    d === 2
+      ? "二维全貌 · 背景与候选解处于同一平面；颜色按当前切片缩放"
+      : `D=${d} 搜索 · 背景是切片，小点是投影；重合不代表已解出；颜色按切片缩放`;
+  const hidden = field.anchor
+    .map((v, j) => ({ v, j }))
+    .filter((p) => !field.axes.includes(p.j));
+  $("slice-coordinates").textContent = hidden.length
+    ? "固定 " +
+      hidden
+        .map((p) => `x${p.j + 1}=${field.coordinates(p.v)[0].toFixed(2)}`)
+        .join(" · ")
+    : "两个坐标已全部显示。";
+  $("vector-caption").textContent = field.hasKnownOptimum
+    ? "每条彩线是一队的完整最佳解；虚线为参考最优。纵向按原边界归一化。"
+    : "每条彩线是一队的完整最佳解。F5 高维无已核定的约束最优参考线。";
+}
+function changeAxes(which) {
+  const axes = [+$("axis-x").value, +$("axis-y").value];
+  if (axes[0] === axes[1]) axes[1 - which] = field.axes[which];
+  field.setView(axes);
+  $("axis-x").value = String(axes[0]);
+  $("axis-y").value = String(axes[1]);
+  updateViewNote();
+  drawVectors();
+  dirty = true;
+}
+function applySlice() {
+  const source = $("slice-anchor").value;
+  const anchor =
+    source === "center"
+      ? Array(field.dimension).fill(0.5)
+      : source === "reference"
+        ? field.normalizedOptimum()
+        : teams.find((t) => t.key === source).algo.best.position;
+  field.setView(field.axes, anchor);
+  updateViewNote();
+  dirty = true;
+}
+function drawVectors() {
+  if (!field.isBenchmark) return;
+  const d = field.dimension,
+    w = 510,
+    h = 146,
+    left = 28,
+    right = w - 24,
+    top = 15,
+    bottom = 111;
+  const x = (j) => left + (j * (right - left)) / (d - 1),
+    y = (v) => bottom - v * (bottom - top);
+  let svg = "";
+  for (let j = 0; j < d; j++)
+    svg += `<line x1="${x(j)}" x2="${x(j)}" y1="${top}" y2="${bottom}" stroke="#cdd7c2"/><text x="${x(j)}" y="131" text-anchor="middle" fill="${field.axes.includes(j) ? "#365d3a" : "#859477"}" font-size="11">x${j + 1}</text>`;
+  svg +=
+    '<text x="5" y="19" fill="#859477" font-size="9">U</text><text x="5" y="114" fill="#859477" font-size="9">L</text>';
+  const reference = field.normalizedOptimum();
+  if (reference)
+    svg += `<polyline points="${reference.map((v, j) => x(j) + "," + y(v)).join(" ")}" fill="none" stroke="#6b805a" stroke-width="1.5" stroke-dasharray="4 4"><title>参考最优向量</title></polyline>`;
+  for (const team of teams) {
+    const p = team.algo.best.position;
+    const title =
+      team.name +
+      " 完整最佳解: " +
+      field
+        .coordinates(...p)
+        .map((v, j) => `x${j + 1}=${v.toFixed(4)}`)
+        .join(", ");
+    svg += `<g opacity="${focus === "all" || focus === team.key ? 1 : 0.15}"><title>${title}</title><polyline points="${p.map((v, j) => x(j) + "," + y(v)).join(" ")}" fill="none" stroke="${team.color}" stroke-width="2"/>`;
+    for (let j = 0; j < d; j++)
+      svg += `<circle cx="${x(j)}" cy="${y(p[j])}" r="3" fill="${team.color}"/>`;
+    svg += "</g>";
+  }
+  $("vector-chart").innerHTML = svg;
+}
+$("dimension").addEventListener("change", () => {
+  dimension = +$("dimension").value;
+  chooseTerrain(preset);
+});
+$("axis-x").addEventListener("change", () => changeAxes(0));
+$("axis-y").addEventListener("change", () => changeAxes(1));
+$("slice-apply").addEventListener("click", applySlice);
+$("slice-anchor").addEventListener("change", applySlice);
 $("btn-run").addEventListener("click", () => {
   if (generation >= LIMIT) chooseTerrain(preset, true);
   setRunning(!running);
@@ -534,6 +695,7 @@ document
 document.querySelectorAll("[data-focus]").forEach((button) =>
   button.addEventListener("click", () => {
     focus = button.dataset.focus;
+    drawVectors();
     document.querySelectorAll("[data-focus]").forEach((el) => {
       const selected = el.dataset.focus === focus;
       el.classList.toggle("active", selected);
@@ -609,7 +771,7 @@ canvas.addEventListener("pointermove", (event) => {
     y = hover.y * height;
   tooltip.textContent = `此处高度 ${(clamp(field.normalised(hover.x, hover.y), 0, 1) * 100).toFixed(1)}%`;
   if (field.isBenchmark)
-    tooltip.textContent = `f = ${field.objective(hover.x, hover.y).toExponential(3)}`;
+    tooltip.textContent = `${field.dimension > 2 ? "切片 " : ""}f = ${field.objective(hover.x, hover.y).toExponential(3)}`;
   tooltip.style.left = clamp(x + 14, 8, width - 120) + "px";
   tooltip.style.top = clamp(y + 14, 8, height - 62) + "px";
   tooltip.hidden = moving;

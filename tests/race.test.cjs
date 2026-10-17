@@ -60,7 +60,7 @@ test("all algorithms retain finite, bounded candidates and monotone bests on eve
         const field = new Landscape(preset, 43);
         const a = new Type(field, { popSize, random: seededRandom(99) });
         let best = a.best.f;
-        for (let i = 1; i <= 120; i++) {
+        for (let i = 1; i <= 100; i++) {
           a.step();
           assert.equal(a.generation, i);
           assert.equal(a.population.length, popSize);
@@ -71,7 +71,7 @@ test("all algorithms retain finite, bounded candidates and monotone bests on eve
             assert.ok(p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1);
           }
         }
-        assert.equal(a.history.length, 121);
+        assert.equal(a.history.length, 101);
       }
 });
 
