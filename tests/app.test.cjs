@@ -96,7 +96,15 @@ function app() {
     },
     requestAnimationFrame: noop,
   });
-  for (const file of ["utils", "landscape", "ga", "pso", "de", "app"])
+  for (const file of [
+    "utils",
+    "landscape",
+    "benchmarks",
+    "ga",
+    "pso",
+    "de",
+    "app",
+  ])
     vm.runInContext(
       fs.readFileSync(path.join(__dirname, "../js", file + ".js"), "utf8"),
       context,
@@ -143,7 +151,7 @@ test("a complete expedition ends at 120 generations and the same seed replays it
 test("teams arriving in the same generation share the win", () => {
   const a = app();
   a.run(
-    "teams.forEach(t=>{t.algo.step=()=>{t.algo.best.f=1;t.algo.history.push(1);};});advance();",
+    "chooseTerrain('peaks');teams.forEach(t=>{t.algo.step=()=>{t.algo.best.f=1;t.algo.history.push(1);};});advance();",
   );
   assert.equal(a.run('winners.join(",")'), "ga,pso,de");
   assert.ok(a.cards.every((n) => n.classList.contains("winner")));
@@ -183,4 +191,29 @@ test("R resets even when a game button is focused", () => {
     target: { matches: (selector) => selector.split(",").includes("button") },
   });
   assert.equal(a.run("generation"), 0);
+});
+
+test("benchmark success uses objective gap rather than an attractive map color", () => {
+  const a = app();
+  a.run(
+    "teams.forEach(t=>{t.algo.step=()=>{t.algo.best={x:.5,y:.5,f:1};};});advance();",
+  );
+  assert.equal(a.run("winners.length"), 0);
+  a.run(
+    "teams.forEach(t=>{t.algo.step=()=>{const p=field.optimumPos;t.algo.best={...p,f:field.normalised(p.x,p.y)};};});advance();",
+  );
+  assert.equal(a.run("winners.length"), 3);
+});
+
+test("benchmark selection locks editing and switching to free terrain restores it", () => {
+  const a = app();
+  assert.equal(a.get("btn-move").disabled, true);
+  a.run("setMoving(true)");
+  assert.equal(a.run("moving"), false);
+  a.run("chooseTerrain('peaks')");
+  assert.equal(a.get("btn-move").disabled, false);
+  a.run("setMoving(true)");
+  assert.equal(a.run("moving"), true);
+  a.run("chooseTerrain('sop9')");
+  assert.equal(a.run("moving"), false);
 });

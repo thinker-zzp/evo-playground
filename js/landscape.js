@@ -59,11 +59,14 @@ class Landscape {
     this._ensureRange();
     return (this.evaluate(x, y) - this._minVal) / (this._maxVal - this._minVal);
   }
+  displayHeight(x, y) {
+    return this.normalised(x, y);
+  }
   _ensureRange() {
     if (this._minVal !== null) return;
     let mn = Infinity,
       mx = -Infinity;
-    const n = 240;
+    const n = 400;
     for (let j = 0; j < n; j++)
       for (let i = 0; i < n; i++) {
         const x = i / (n - 1),
@@ -75,6 +78,22 @@ class Landscape {
           this._optimumPos = { x, y };
         }
       }
+    // Refine the sampled maximum locally so a narrow summit is not underrated.
+    let step = 1 / (n - 1);
+    for (let pass = 0; pass < 12; pass++) {
+      const centre = { ...this._optimumPos };
+      for (const dx of [-1, 0, 1])
+        for (const dy of [-1, 0, 1]) {
+          const x = clamp(centre.x + dx * step, 0, 1);
+          const y = clamp(centre.y + dy * step, 0, 1);
+          const value = this.evaluate(x, y);
+          if (value > mx) {
+            mx = value;
+            this._optimumPos = { x, y };
+          }
+        }
+      step *= 0.5;
+    }
     this._minVal = mn;
     this._maxVal = mx;
   }
@@ -97,7 +116,7 @@ class Landscape {
     const values = new Float32Array((nx + 1) * (ny + 1));
     for (let y = 0; y <= ny; y++)
       for (let x = 0; x <= nx; x++)
-        values[y * (nx + 1) + x] = this.normalised(x / nx, y / ny);
+        values[y * (nx + 1) + x] = this.displayHeight(x / nx, y / ny);
     const stops = [
       [0, 211, 231, 223],
       [0.18, 224, 235, 217],

@@ -14,6 +14,10 @@ const TERRAIN_NAMES = {
   peaks: "群峰之间",
   islands: "孤岛远征",
   needle: "针尖山谷",
+  sop9: "SOP F9 · Rastrigin",
+  sop10: "SOP F10 · Ackley",
+  sop5: "SOP F5 · Rosenbrock",
+  sop8: "SOP F8 · Schwefel",
 };
 const LIMIT = 120,
   TARGET = 0.995;
@@ -23,8 +27,8 @@ const chart = $("chart"),
   chartCtx = chart.getContext("2d");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 let seed = 42,
-  preset = "peaks",
-  field = new Landscape(preset, seed),
+  preset = "sop8",
+  field = makeField(preset, seed),
   teams = [];
 let running = false,
   generation = 0,
@@ -72,19 +76,25 @@ function setRunning(value) {
         : "整装待发";
   dirty = true;
 }
+function makeField(key, value) {
+  return ["sop5", "sop8", "sop9", "sop10"].includes(key)
+    ? new BenchmarkField(key, value)
+    : new Landscape(key, value);
+}
 function initialPositions() {
-  const random = seededRandom(seed ^ 0xa1b2c3d4),
-    points = [];
-  const count = +$("r-pop").value;
-  for (let i = 0; i < count; i++) {
-    let point;
-    // Begin below the goal, so finding the summit is part of the expedition.
-    do {
-      point = { x: 0.04 + random() * 0.92, y: 0.06 + random() * 0.88 };
-    } while (field.normalised(point.x, point.y) > 0.78);
-    points.push(point);
-  }
-  return points;
+  const random = seededRandom(seed ^ 0xa1b2c3d4);
+  return Array.from({ length: +$("r-pop").value }, () => ({
+    x: random(),
+    y: random(),
+  }));
+}
+function errorOf(team) {
+  return field.error(team.algo.best.x, team.algo.best.y);
+}
+function chartHeightOf(fitness) {
+  if (!field.isBenchmark) return clamp(fitness, 0, 1);
+  const error = Math.max(1e-8, 1 / Math.max(fitness, Number.MIN_VALUE) - 1);
+  return clamp((8 - Math.log10(error)) / 16, 0, 1);
 }
 function resetRace() {
   setRunning(false);
@@ -114,8 +124,27 @@ function resetRace() {
   $("seed-label").textContent = `SEED ${String(seed).padStart(4, "0")}`;
   $("map-name").textContent = TERRAIN_NAMES[preset];
   $("map-hint").textContent = "每一小点，都是一个正在寻找答案的可能。";
-  $("vote-copy").textContent =
-    "开始前押一队。率先找到 99.5% 高度的队伍，拿下这一局。";
+  $("vote-copy").textContent = field.isBenchmark
+    ? "开始前押一队。实际目标误差 ≤ 0.001 才算解出；本局 120 代。"
+    : "开始前押一队。率先找到 99.5% 高度的队伍，拿下这一局。";
+  $("benchmark-note").hidden = !field.isBenchmark;
+  $("benchmark-note").textContent = field.isBenchmark
+    ? `NeuroEA SOP · D=2 · [${field.bounds.join(", ")}]² · f*=${field.fOpt.toFixed(6)} · seed 只改搜索随机性`
+    : "";
+  $("btn-move").disabled = !!field.isBenchmark;
+  if (moving) setMoving(false);
+  $("btn-shuffle").innerText = field.isBenchmark
+    ? "换搜索种子 ↗"
+    : "随机新地图 ↗";
+  $("chart-scale").textContent = field.isBenchmark
+    ? "Δf · LOG SCALE"
+    : "BEST SO FAR";
+  $("chart").setAttribute(
+    "aria-label",
+    field.isBenchmark
+      ? "三队目标误差随代数变化的对数曲线"
+      : "三队最佳高度随代数变化的曲线",
+  );
   $("dispatch").classList.remove("celebrate");
   announce("山谷准备好了。", "你负责好奇，它们负责找路。");
   document.querySelectorAll("[data-vote]").forEach((button) => {
@@ -135,7 +164,7 @@ function resetRace() {
 function chooseTerrain(next, shuffle = false) {
   preset = next;
   if (shuffle) seed = (seed + 1) >>> 0;
-  field = new Landscape(preset, seed);
+  field = makeField(preset, seed);
   document.querySelectorAll("[data-terrain]").forEach((button) => {
     const chosen = button.dataset.terrain === preset;
     button.classList.toggle("selected", chosen);
@@ -146,10 +175,16 @@ function chooseTerrain(next, shuffle = false) {
 function updateStats() {
   $("s-gen").textContent = String(generation).padStart(3, "0");
   for (const team of teams) {
-    const score = Math.min(100, team.algo.best.f * 100);
+    const score = field.isBenchmark
+      ? clamp((4 - Math.log10(Math.max(errorOf(team), 1e-12))) / 7, 0, 1) * 100
+      : Math.min(100, team.algo.best.f * 100);
     $("score-" + team.key).replaceChildren(
-      document.createTextNode(score.toFixed(1)),
-      Object.assign(document.createElement("small"), { textContent: "%" }),
+      document.createTextNode(
+        field.isBenchmark ? errorOf(team).toExponential(2) : score.toFixed(1),
+      ),
+      Object.assign(document.createElement("small"), {
+        textContent: field.isBenchmark ? " Δf" : "%",
+      }),
     );
     $("bar-" + team.key).style.width = score + "%";
     $("tag-" + team.key).textContent =
@@ -168,7 +203,11 @@ function advance(now = performance.now()) {
   generation++;
   stepTime = now;
   const arrived = teams.filter(
-    (team) => team.reached === null && team.algo.best.f >= TARGET,
+    (team) =>
+      team.reached === null &&
+      (field.isBenchmark
+        ? errorOf(team) <= field.tolerance
+        : team.algo.best.f >= TARGET),
   );
   arrived.forEach((team) => (team.reached = generation));
   if (!winners.length && arrived.length) {
@@ -247,7 +286,7 @@ function drawChart() {
     h = chartHeight;
   if (!w || !h) return;
   chartCtx.clearRect(0, 0, w, h);
-  const left = 24,
+  const left = 30,
     right = w - 4,
     top = 5,
     bottom = h - 6;
@@ -265,7 +304,17 @@ function drawChart() {
     chartCtx.setLineDash([]);
     chartCtx.fillStyle = "#96a18b";
     chartCtx.fillText(
-      value === 1 ? "100" : value === 0.5 ? "50" : "0",
+      field.isBenchmark
+        ? value === 1
+          ? "1e-8"
+          : value === 0.5
+            ? "1e0"
+            : "1e8"
+        : value === 1
+          ? "100"
+          : value === 0.5
+            ? "50"
+            : "0",
       0,
       y + 3,
     );
@@ -278,13 +327,13 @@ function drawChart() {
     chartCtx.lineJoin = "round";
     team.algo.history.forEach((v, i) => {
       const x = left + (i / max) * (right - left),
-        y = bottom - clamp(v, 0, 1) * (bottom - top);
+        y = bottom - chartHeightOf(v) * (bottom - top);
       if (!i) chartCtx.moveTo(x, y);
       else chartCtx.lineTo(x, y);
     });
     chartCtx.stroke();
     const x = left + (generation / max) * (right - left),
-      y = bottom - clamp(team.algo.best.f, 0, 1) * (bottom - top);
+      y = bottom - chartHeightOf(team.algo.best.f) * (bottom - top);
     chartCtx.beginPath();
     chartCtx.arc(x, y, 2.2, 0, Math.PI * 2);
     chartCtx.fillStyle = team.color;
@@ -416,7 +465,7 @@ function paint(now) {
     ctx.font = '9px "Microsoft YaHei", sans-serif';
     ctx.fillStyle = "#587444";
     ctx.textAlign = "center";
-    ctx.fillText("山顶在这里", ox, oy - 33);
+    ctx.fillText(field.isBenchmark ? "最优解" : "山顶在这里", ox, oy - 33);
   }
   if (hover && moving) {
     ctx.strokeStyle = "#395b4670";
@@ -540,7 +589,7 @@ $("opt-trails").addEventListener("change", () => {
   dirty = true;
 });
 function setMoving(value) {
-  moving = value;
+  moving = value && !field.isBenchmark;
   $("btn-move").setAttribute("aria-pressed", String(moving));
   $("move-notice").hidden = !moving;
   dirty = true;
@@ -559,6 +608,8 @@ canvas.addEventListener("pointermove", (event) => {
     x = hover.x * width,
     y = hover.y * height;
   tooltip.textContent = `此处高度 ${(clamp(field.normalised(hover.x, hover.y), 0, 1) * 100).toFixed(1)}%`;
+  if (field.isBenchmark)
+    tooltip.textContent = `f = ${field.objective(hover.x, hover.y).toExponential(3)}`;
   tooltip.style.left = clamp(x + 14, 8, width - 120) + "px";
   tooltip.style.top = clamp(y + 14, 8, height - 62) + "px";
   tooltip.hidden = moving;
@@ -603,6 +654,6 @@ document.addEventListener("visibilitychange", () => {
 new ResizeObserver(resize).observe($("canvas-wrap"));
 new ResizeObserver(resize).observe(chart);
 window.addEventListener("resize", resize);
-resetRace();
+chooseTerrain(preset);
 resize();
 requestAnimationFrame(tick);

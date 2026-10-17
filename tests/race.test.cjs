@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 const path = require("node:path");
 const context = vm.createContext({ console });
-for (const file of ["utils", "landscape", "ga", "pso", "de"]) {
+for (const file of ["utils", "landscape", "benchmarks", "ga", "pso", "de"]) {
   vm.runInContext(
     fs.readFileSync(path.join(__dirname, "../js", file + ".js"), "utf8"),
     context,
